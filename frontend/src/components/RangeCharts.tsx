@@ -18,7 +18,8 @@ export function RangeCharts({ timeline, topHands }: { timeline: TimelineEntry[];
   return (
     <section className="grid gap-4 xl:grid-cols-2">
       <div className="card-panel p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-600">Probability Changes</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Probability Changes</h2>
+        <p className="mb-3 mt-1 text-sm text-zinc-600">Lines show how the current top hands gained or lost probability at each action.</p>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={handData}>
@@ -35,7 +36,8 @@ export function RangeCharts({ timeline, topHands }: { timeline: TimelineEntry[];
         </div>
       </div>
       <div className="card-panel p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-600">Entropy & Trends</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Entropy & Trends</h2>
+        <p className="mb-3 mt-1 text-sm text-zinc-600">Entropy drops as the range narrows. Aggression is shown as a contextual trend line.</p>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={handData.map((entry, index) => ({ ...entry, ...trendData[index] }))}>

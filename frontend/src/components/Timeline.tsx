@@ -8,6 +8,7 @@ export function Timeline({ entries, selected, onSelect }: { entries: TimelineEnt
         <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Action Timeline</h2>
         <GitBranch size={16} className="text-zinc-500" />
       </div>
+      <p className="mb-3 text-sm text-zinc-600">Click a step to rewind the belief distribution to that point in the hand.</p>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {entries.map((entry) => (
           <button
