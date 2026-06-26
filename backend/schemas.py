@@ -1,0 +1,71 @@
+from __future__ import annotations
+
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+from engine.state import ActionType, Street
+
+
+class BoardStatePayload(BaseModel):
+    street: Street = Street.PREFLOP
+    board_cards: list[str] = Field(default_factory=list)
+    pot: float = 0.0
+    effective_stack: float = 0.0
+    position: str = "BTN"
+
+
+class StartHandRequest(BaseModel):
+    hand_id: str
+    player_id: str
+    board_state: BoardStatePayload = Field(default_factory=BoardStatePayload)
+
+
+class ActionRequest(BaseModel):
+    hand_id: str
+    player_id: str
+    action_type: ActionType
+    street: Street
+    position: str
+    amount: float = 0.0
+    pot_before: float = 0.0
+    bet_fraction_pot: float = 0.0
+    board_cards: list[str] = Field(default_factory=list)
+    effective_stack: float = 0.0
+
+
+class ShowdownRequest(BaseModel):
+    hand_id: str
+    player_id: str
+    hole_cards: list[str]
+    won: bool = False
+
+
+class ImportHandRequest(BaseModel):
+    site: str
+    raw_text: str
+
+
+class RangeResponse(BaseModel):
+    hand_id: str
+    player_id: str
+    distribution: dict[str, float]
+    top_hands: list[dict[str, float | str]]
+    matrix: list[dict[str, Any]]
+    entropy: float
+    timeline: list[dict[str, Any]]
+    board_state: dict[str, Any]
+
+
+class PlayerResponse(BaseModel):
+    player_id: str
+    vpip: float
+    pfr: float
+    three_bet: float
+    fold_to_three_bet: float
+    cbet: float
+    aggression: float
+    river_aggression: float
+    bluff_frequency: float
+    showdown_frequency: float
+    hands_observed: int
