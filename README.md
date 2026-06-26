@@ -17,8 +17,14 @@ Educational real-time poker analysis tool that estimates an opponent's range as 
 ```powershell
 python -m venv .venv
 .\\.venv\\Scripts\\Activate.ps1
-pip install -r requirements.txt
-uvicorn backend.main:app --reload
+python -m pip install -r requirements.txt
+python -m uvicorn backend.main:app --reload
+```
+
+The runtime requirements intentionally exclude PyTorch so the FastAPI app can install cleanly on Python 3.14 without compiling native extensions. Install the ML/training stack separately when you need it:
+
+```powershell
+python -m pip install -r requirements-ml.txt
 ```
 
 ## Run Frontend
