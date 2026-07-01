@@ -4,12 +4,13 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from engine.state import ActionType, Street
+from engine.state import ActionActor, ActionType, Street
 
 
 class BoardStatePayload(BaseModel):
     street: Street = Street.PREFLOP
     board_cards: list[str] = Field(default_factory=list)
+    hero_cards: list[str] = Field(default_factory=list)
     pot: float = 0.0
     effective_stack: float = 0.0
     position: str = "BTN"
@@ -19,11 +20,13 @@ class StartHandRequest(BaseModel):
     hand_id: str
     player_id: str
     board_state: BoardStatePayload = Field(default_factory=BoardStatePayload)
+    session_profile: dict[str, Any] | None = None
 
 
 class ActionRequest(BaseModel):
     hand_id: str
     player_id: str
+    actor: ActionActor = ActionActor.OPPONENT
     action_type: ActionType
     street: Street
     position: str
@@ -31,6 +34,7 @@ class ActionRequest(BaseModel):
     pot_before: float = 0.0
     bet_fraction_pot: float = 0.0
     board_cards: list[str] = Field(default_factory=list)
+    hero_cards: list[str] = Field(default_factory=list)
     effective_stack: float = 0.0
 
 
@@ -55,6 +59,9 @@ class RangeResponse(BaseModel):
     entropy: float
     timeline: list[dict[str, Any]]
     board_state: dict[str, Any]
+    profile: dict[str, Any]
+    recommendation: dict[str, Any]
+    adaptation_notes: list[str]
 
 
 class PlayerResponse(BaseModel):

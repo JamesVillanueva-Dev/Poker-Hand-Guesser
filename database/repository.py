@@ -45,7 +45,8 @@ class SQLiteRepository:
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     current_distribution TEXT NOT NULL,
                     snapshots TEXT NOT NULL,
-                    board_state TEXT NOT NULL
+                    board_state TEXT NOT NULL,
+                    session_profile TEXT
                 );
 
                 CREATE TABLE IF NOT EXISTS imported_hands (
@@ -57,6 +58,12 @@ class SQLiteRepository:
                 );
                 """
             )
+            columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(hand_sessions)").fetchall()
+            }
+            if "session_profile" not in columns:
+                connection.execute("ALTER TABLE hand_sessions ADD COLUMN session_profile TEXT")
 
     def get_player(self, player_id: str) -> PlayerProfile:
         with self._connect() as connection:
@@ -94,18 +101,28 @@ class SQLiteRepository:
                 values,
             )
 
-    def save_session(self, hand_id: str, player_id: str, distribution: dict[str, float], snapshots: list[dict[str, Any]], board_state: dict[str, Any]) -> None:
+    def save_session(
+        self,
+        hand_id: str,
+        player_id: str,
+        distribution: dict[str, float],
+        snapshots: list[dict[str, Any]],
+        board_state: dict[str, Any],
+        session_profile: PlayerProfile | None = None,
+    ) -> None:
+        profile_payload = json.dumps(session_profile.as_dict()) if session_profile else None
         with self._connect() as connection:
             connection.execute(
                 """
-                INSERT INTO hand_sessions (hand_id, player_id, current_distribution, snapshots, board_state)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO hand_sessions (hand_id, player_id, current_distribution, snapshots, board_state, session_profile)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(hand_id) DO UPDATE SET
                     current_distribution = excluded.current_distribution,
                     snapshots = excluded.snapshots,
-                    board_state = excluded.board_state
+                    board_state = excluded.board_state,
+                    session_profile = excluded.session_profile
                 """,
-                (hand_id, player_id, json.dumps(distribution), json.dumps(snapshots), json.dumps(board_state)),
+                (hand_id, player_id, json.dumps(distribution), json.dumps(snapshots), json.dumps(board_state), profile_payload),
             )
 
     def get_session(self, hand_id: str) -> dict[str, Any] | None:
@@ -117,6 +134,10 @@ class SQLiteRepository:
         data["current_distribution"] = json.loads(data["current_distribution"])
         data["snapshots"] = json.loads(data["snapshots"])
         data["board_state"] = json.loads(data["board_state"])
+        if data.get("session_profile"):
+            data["session_profile"] = PlayerProfile(**json.loads(data["session_profile"]))
+        else:
+            data["session_profile"] = PlayerProfile(player_id=data["player_id"])
         return data
 
     def list_history(self, limit: int = 50) -> list[dict[str, Any]]:

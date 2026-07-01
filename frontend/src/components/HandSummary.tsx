@@ -10,24 +10,25 @@ function CardPip({ card }: { card: string }) {
   );
 }
 
-export function HandSummary({ board }: { board: BoardState }) {
+export function HandSummary({ board, handNumber }: { board: BoardState; handNumber: number }) {
   const cards = board.board_cards.length ? board.board_cards : ["--", "--", "--"];
+  const hero = board.hero_cards.length ? board.hero_cards : ["--", "--"];
   return (
     <section className="hero-panel">
       <div className="mb-6 flex flex-col justify-between gap-5 md:flex-row md:items-start">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-felt-700">Educational range analysis</div>
-          <h1 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">Real-Time Poker Range Estimator</h1>
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-felt-700">Heads-up no-limit Hold'em</div>
+          <h1 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">Session Opponent Model</h1>
           <p className="mt-3 max-w-4xl text-base leading-7 text-zinc-600">
-            Track how observed actions reshape an opponent's likely starting hand distribution across all 169 hand classes.
+            Enter each line as the hand unfolds. Repeated opponent patterns tighten the ranked hand range and the suggested sizing.
           </p>
         </div>
         <span className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-felt-700 shadow-sm ring-1 ring-felt-100">
           <Radio size={14} />
-          Live inference
+          Hand {handNumber}
         </span>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <div className="summary-tile">
           <Layers size={18} className="text-felt-700" />
           <div>
@@ -36,7 +37,11 @@ export function HandSummary({ board }: { board: BoardState }) {
           </div>
         </div>
         <div className="summary-tile block">
-          <div className="mb-1 text-xs text-zinc-500">Board Cards</div>
+          <div className="mb-1 text-xs text-zinc-500">Hero Cards</div>
+          <div className="flex gap-1">{hero.map((card, index) => <CardPip key={`${card}-${index}`} card={card} />)}</div>
+        </div>
+        <div className="summary-tile block">
+          <div className="mb-1 text-xs text-zinc-500">Board</div>
           <div className="flex gap-1">{cards.map((card, index) => <CardPip key={`${card}-${index}`} card={card} />)}</div>
         </div>
         <div className="summary-tile">

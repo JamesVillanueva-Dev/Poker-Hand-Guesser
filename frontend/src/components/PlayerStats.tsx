@@ -24,11 +24,11 @@ export function PlayerStats({ profile }: { profile: PlayerProfile }) {
   return (
     <section className="card-panel p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Player Statistics</h2>
-        <span className="text-xs text-zinc-500">{profile.hands_observed} hands observed</span>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Session Opponent Tendencies</h2>
+        <span className="text-xs text-zinc-500">{profile.hands_observed} actions observed</span>
       </div>
       <p className="mb-4 text-sm leading-6 text-zinc-600">
-        Profile stats change action likelihoods. A raise from a tight low-PFR player is weighted differently than a raise from a loose aggressive player.
+        These tendencies live only in the current session and change how future opponent actions are interpreted.
       </p>
       <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
         {percentStats.map(([key, label]) => {

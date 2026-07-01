@@ -48,4 +48,5 @@ class RangeEstimator:
 
 
 def action_label(action: PokerAction) -> str:
-    return f"{action.street.value.title()} {action.position} {action.action_type.value.replace('_', ' ').title()}"
+    actor = "Hero" if action.actor.value == "hero" else "Opponent"
+    return f"{action.street.value.title()} {actor} {action.position} {action.action_type.value.replace('_', ' ').title()}"

@@ -1,10 +1,17 @@
 import { create } from "zustand";
 import { api } from "../api/client";
 import { demoRange } from "./handClasses";
-import type { ActionPayload, ActionType, PlayerProfile, RangeResponse, Street } from "../types/poker";
+import type { ActionDraft, ActionPayload, BoardState, HandContext, PlayerProfile, RangeResponse } from "../types/poker";
 
-const handId = "demo-hand-001";
 const playerId = "villain-001";
+const initialContext: HandContext = {
+  street: "preflop",
+  position: "BTN",
+  pot: 1.5,
+  effectiveStack: 100,
+  heroCards: "",
+  boardCards: "",
+};
 
 const fallbackProfile: PlayerProfile = {
   player_id: playerId,
@@ -20,64 +27,131 @@ const fallbackProfile: PlayerProfile = {
   hands_observed: 0,
 };
 
-const fallbackRange = (): RangeResponse => {
+const boardFromContext = (context: HandContext): BoardState => ({
+  street: context.street,
+  board_cards: parseCards(context.boardCards),
+  hero_cards: parseCards(context.heroCards).slice(0, 2),
+  pot: context.pot,
+  effective_stack: context.effectiveStack,
+  position: context.position,
+});
+
+const fallbackRange = (handId = "demo-hand-001", profile = fallbackProfile, context = initialContext): RangeResponse => {
   const range = demoRange();
   return {
     hand_id: handId,
     player_id: playerId,
     ...range,
     entropy: 7.05,
-    board_state: { street: "preflop", board_cards: [], pot: 0, effective_stack: 100, position: "BTN" },
+    board_state: boardFromContext(context),
     timeline: [{ sequence: 0, action_label: "Initial Range", entropy: 7.05, distribution: range.distribution }],
+    profile,
+    adaptation_notes: [
+      "Session-only model: waiting for live backend actions before adapting.",
+      "Start FastAPI to enable live recommendations and profile updates.",
+    ],
+    recommendation: {
+      action: "check",
+      sizing_bb: 0,
+      sizing_pot_fraction: 0,
+      confidence: 0.4,
+      headline: "Backend offline.",
+      reasons: ["Live strategy recommendations require the FastAPI backend."],
+    },
   };
 };
 
 interface RangeState {
   range: RangeResponse;
   profile: PlayerProfile;
+  handContext: HandContext;
+  handNumber: number;
   loading: boolean;
   error?: string;
   selectedSequence: number;
-  start: () => Promise<void>;
-  addAction: (actionType: ActionType, street: Street, betFraction: number) => Promise<void>;
+  updateContext: (context: Partial<HandContext>) => void;
+  newHand: (keepProfile?: boolean) => Promise<void>;
+  resetSession: () => Promise<void>;
+  addAction: (draft: ActionDraft) => Promise<void>;
   rewind: (sequence: number) => Promise<void>;
 }
 
 export const useRangeStore = create<RangeState>((set, get) => ({
   range: fallbackRange(),
   profile: fallbackProfile,
+  handContext: initialContext,
+  handNumber: 1,
   loading: false,
   selectedSequence: 0,
-  async start() {
+  updateContext(context) {
+    set((state) => ({ handContext: { ...state.handContext, ...context } }));
+  },
+  async newHand(keepProfile = true) {
+    const state = get();
+    const nextHandNumber = keepProfile ? state.handNumber + 1 : 1;
+    const handId = `session-hand-${Date.now()}-${nextHandNumber}`;
+    const context = keepProfile ? state.handContext : initialContext;
+    const profile = keepProfile ? state.profile : fallbackProfile;
     set({ loading: true, error: undefined });
     try {
-      const range = await api.startHand(handId, playerId);
-      const profile = await api.getPlayer(playerId);
-      set({ range, profile, selectedSequence: range.timeline.length - 1, loading: false });
+      const range = await api.startHand(handId, playerId, boardFromContext(context), profile);
+      set({
+        range,
+        profile: range.profile,
+        handContext: {
+          ...context,
+          street: range.board_state.street,
+          pot: range.board_state.pot,
+          effectiveStack: range.board_state.effective_stack,
+          position: range.board_state.position,
+          boardCards: range.board_state.board_cards.join(" "),
+          heroCards: range.board_state.hero_cards.join(" "),
+        },
+        handNumber: nextHandNumber,
+        selectedSequence: range.timeline.length - 1,
+        loading: false,
+      });
     } catch (error) {
-      set({ range: fallbackRange(), profile: fallbackProfile, error: "Backend offline: showing local demo data.", loading: false });
+      set({ range: fallbackRange(handId, profile, context), profile, error: "Backend offline: showing local demo data.", loading: false });
     }
   },
-  async addAction(actionType, street, betFraction) {
+  async resetSession() {
+    set({ profile: fallbackProfile, handContext: initialContext, handNumber: 0 });
+    await get().newHand(false);
+  },
+  async addAction(draft) {
     const current = get().range;
-    const amount = Math.round(Math.max(8, current.board_state.pot || 12) * betFraction);
     const payload: ActionPayload = {
       hand_id: current.hand_id,
       player_id: current.player_id,
-      action_type: actionType,
-      street,
-      position: street === "preflop" ? "HJ" : "IP",
-      amount,
-      pot_before: Math.max(current.board_state.pot, 12),
-      bet_fraction_pot: betFraction,
-      board_cards: street === "preflop" ? [] : current.board_state.board_cards.length ? current.board_state.board_cards : ["As", "7d", "2c"],
-      effective_stack: 100,
+      actor: draft.actor,
+      action_type: draft.action_type,
+      street: draft.street,
+      position: draft.position,
+      amount: draft.amount,
+      pot_before: draft.pot_before,
+      bet_fraction_pot: draft.pot_before > 0 ? draft.amount / draft.pot_before : 0,
+      board_cards: draft.board_cards,
+      hero_cards: draft.hero_cards,
+      effective_stack: draft.effective_stack,
     };
     set({ loading: true, error: undefined });
     try {
       const range = await api.postAction(payload);
-      const profile = await api.getPlayer(current.player_id);
-      set({ range, profile, selectedSequence: range.timeline.length - 1, loading: false });
+      set({
+        range,
+        profile: range.profile,
+        handContext: {
+          street: range.board_state.street,
+          position: range.board_state.position,
+          pot: range.board_state.pot,
+          effectiveStack: range.board_state.effective_stack,
+          heroCards: range.board_state.hero_cards.join(" "),
+          boardCards: range.board_state.board_cards.join(" "),
+        },
+        selectedSequence: range.timeline.length - 1,
+        loading: false,
+      });
     } catch (error) {
       set({ error: "Could not reach backend. Start FastAPI to run live inference.", loading: false });
     }
@@ -101,3 +175,12 @@ export const useRangeStore = create<RangeState>((set, get) => ({
     }
   },
 }));
+
+function parseCards(value: string): string[] {
+  return value
+    .split(/[\s,]+/)
+    .map((card) => card.trim())
+    .filter(Boolean)
+    .map((card) => `${card[0]?.toUpperCase() ?? ""}${card[1]?.toLowerCase() ?? ""}`)
+    .filter((card) => /^[AKQJT98765432][shdc]$/.test(card));
+}

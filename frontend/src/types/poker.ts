@@ -1,4 +1,5 @@
 export type Street = "preflop" | "flop" | "turn" | "river";
+export type ActionActor = "hero" | "opponent";
 export type ActionType = "fold" | "check" | "call" | "bet" | "raise" | "three_bet" | "four_bet" | "jam";
 
 export interface MatrixCell {
@@ -21,6 +22,7 @@ export interface TimelineEntry {
   distribution: Record<string, number>;
   action?: {
     player_id: string;
+    actor: ActionActor;
     action_type: ActionType;
     street: Street;
     position: string;
@@ -28,14 +30,25 @@ export interface TimelineEntry {
     pot_before: number;
     bet_fraction_pot: number;
   };
+  explanation?: string;
 }
 
 export interface BoardState {
   street: Street;
   board_cards: string[];
+  hero_cards: string[];
   pot: number;
   effective_stack: number;
   position: string;
+}
+
+export interface MoveRecommendation {
+  action: string;
+  sizing_bb: number;
+  sizing_pot_fraction: number;
+  confidence: number;
+  headline: string;
+  reasons: string[];
 }
 
 export interface RangeResponse {
@@ -47,6 +60,9 @@ export interface RangeResponse {
   entropy: number;
   timeline: TimelineEntry[];
   board_state: BoardState;
+  profile: PlayerProfile;
+  recommendation: MoveRecommendation;
+  adaptation_notes: string[];
 }
 
 export interface PlayerProfile {
@@ -66,6 +82,7 @@ export interface PlayerProfile {
 export interface ActionPayload {
   hand_id: string;
   player_id: string;
+  actor: ActionActor;
   action_type: ActionType;
   street: Street;
   position: string;
@@ -73,5 +90,27 @@ export interface ActionPayload {
   pot_before: number;
   bet_fraction_pot: number;
   board_cards: string[];
+  hero_cards: string[];
   effective_stack: number;
+}
+
+export interface ActionDraft {
+  actor: ActionActor;
+  action_type: ActionType;
+  street: Street;
+  position: string;
+  amount: number;
+  pot_before: number;
+  board_cards: string[];
+  hero_cards: string[];
+  effective_stack: number;
+}
+
+export interface HandContext {
+  street: Street;
+  position: string;
+  pot: number;
+  effectiveStack: number;
+  heroCards: string;
+  boardCards: string;
 }

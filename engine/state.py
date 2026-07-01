@@ -22,12 +22,18 @@ class ActionType(StrEnum):
     JAM = "jam"
 
 
+class ActionActor(StrEnum):
+    HERO = "hero"
+    OPPONENT = "opponent"
+
+
 @dataclass(frozen=True)
 class PokerAction:
     player_id: str
     action_type: ActionType
     street: Street
     position: str
+    actor: ActionActor = ActionActor.OPPONENT
     amount: float = 0.0
     pot_before: float = 0.0
     bet_fraction_pot: float = 0.0
@@ -38,6 +44,7 @@ class PokerAction:
 class BoardState:
     street: Street = Street.PREFLOP
     board_cards: list[str] = field(default_factory=list)
+    hero_cards: list[str] = field(default_factory=list)
     pot: float = 0.0
     effective_stack: float = 0.0
     position: str = "BTN"

@@ -16,7 +16,9 @@ function latestChange(timeline: TimelineEntry[], hand: string) {
 
 function reasonForLatest(entry?: TimelineEntry) {
   const action = entry?.action;
+  if (entry?.explanation) return entry.explanation;
   if (!action) return "The first range starts close to a neutral preflop distribution weighted by real card combinations.";
+  if (action.actor === "hero") return "Hero action recorded as context. The opponent range updates when the opponent acts.";
   if (["raise", "three_bet", "four_bet", "jam", "bet"].includes(action.action_type)) {
     return "Aggressive actions increase hands that the likelihood model expects to bet or raise for value, while still leaving some bluff weight.";
   }
