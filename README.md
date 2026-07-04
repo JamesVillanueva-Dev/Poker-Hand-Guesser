@@ -37,6 +37,16 @@ npm run dev
 
 Open `http://127.0.0.1:5173`.
 
+## Run Everything
+
+After installing the backend and frontend dependencies above, start both services from the project root:
+
+```powershell
+npm run dev
+```
+
+This starts FastAPI at `http://127.0.0.1:8000` and Vite at `http://127.0.0.1:5173`.
+
 ## API
 
 - `POST /hand/start`
