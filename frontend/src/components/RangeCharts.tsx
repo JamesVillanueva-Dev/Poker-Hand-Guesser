@@ -29,7 +29,7 @@ export function RangeCharts({ timeline, topHands }: { timeline: TimelineEntry[];
               <Tooltip formatter={(value) => `${Number(value).toFixed(2)}%`} />
               <Legend />
               {trackedHands.map((hand, index) => (
-                <Line key={hand} type="monotone" dataKey={hand} stroke={["#13533f", "#b6673a", "#334155", "#1d7c5b", "#7c3aed"][index]} strokeWidth={2} dot={false} animationDuration={450} />
+                <Line key={hand} type="monotone" dataKey={hand} stroke={["#0369a1", "#2563eb", "#38bdf8", "#0f766e", "#475569"][index]} strokeWidth={2} dot={false} animationDuration={450} />
               ))}
             </LineChart>
           </ResponsiveContainer>
@@ -46,8 +46,8 @@ export function RangeCharts({ timeline, topHands }: { timeline: TimelineEntry[];
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
               <Legend />
-              <Area type="monotone" dataKey="entropy" stroke="#13533f" fill="#d9efe5" animationDuration={450} />
-              <Area type="monotone" dataKey="aggression" stroke="#b6673a" fill="#f1ddd1" animationDuration={450} />
+              <Area type="monotone" dataKey="entropy" stroke="#0369a1" fill="#dff4ff" animationDuration={450} />
+              <Area type="monotone" dataKey="aggression" stroke="#2563eb" fill="#dbeafe" animationDuration={450} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

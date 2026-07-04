@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api } from "../api/client";
+import { ApiError, api } from "../api/client";
 import { demoRange } from "./handClasses";
 import type { ActionDraft, ActionPayload, BoardState, HandContext, PlayerProfile, RangeResponse } from "../types/poker";
 
@@ -34,6 +34,15 @@ const boardFromContext = (context: HandContext): BoardState => ({
   pot: context.pot,
   effective_stack: context.effectiveStack,
   position: context.position,
+});
+
+const contextFromRange = (range: RangeResponse): HandContext => ({
+  street: range.board_state.street,
+  position: range.board_state.position,
+  pot: range.board_state.pot,
+  effectiveStack: range.board_state.effective_stack,
+  heroCards: range.board_state.hero_cards.join(" "),
+  boardCards: range.board_state.board_cards.join(" "),
 });
 
 const fallbackRange = (handId = "demo-hand-001", profile = fallbackProfile, context = initialContext): RangeResponse => {
@@ -73,6 +82,7 @@ interface RangeState {
   newHand: (keepProfile?: boolean) => Promise<void>;
   resetSession: () => Promise<void>;
   addAction: (draft: ActionDraft) => Promise<void>;
+  recordShowdown: (holeCards: string[], won: boolean) => Promise<void>;
   rewind: (sequence: number) => Promise<void>;
 }
 
@@ -98,15 +108,7 @@ export const useRangeStore = create<RangeState>((set, get) => ({
       set({
         range,
         profile: range.profile,
-        handContext: {
-          ...context,
-          street: range.board_state.street,
-          pot: range.board_state.pot,
-          effectiveStack: range.board_state.effective_stack,
-          position: range.board_state.position,
-          boardCards: range.board_state.board_cards.join(" "),
-          heroCards: range.board_state.hero_cards.join(" "),
-        },
+        handContext: contextFromRange(range),
         handNumber: nextHandNumber,
         selectedSequence: range.timeline.length - 1,
         loading: false,
@@ -141,19 +143,44 @@ export const useRangeStore = create<RangeState>((set, get) => ({
       set({
         range,
         profile: range.profile,
-        handContext: {
-          street: range.board_state.street,
-          position: range.board_state.position,
-          pot: range.board_state.pot,
-          effectiveStack: range.board_state.effective_stack,
-          heroCards: range.board_state.hero_cards.join(" "),
-          boardCards: range.board_state.board_cards.join(" "),
-        },
+        handContext: contextFromRange(range),
         selectedSequence: range.timeline.length - 1,
         loading: false,
       });
     } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        try {
+          await api.startHand(current.hand_id, current.player_id, boardFromContext(get().handContext), get().profile);
+          const range = await api.postAction(payload);
+          set({
+            range,
+            profile: range.profile,
+            handContext: contextFromRange(range),
+            selectedSequence: range.timeline.length - 1,
+            loading: false,
+          });
+          return;
+        } catch {
+          set({ error: "Backend session was missing and could not be recreated. Try Reset session.", loading: false });
+          return;
+        }
+      }
       set({ error: "Could not reach backend. Start FastAPI to run live inference.", loading: false });
+    }
+  },
+  async recordShowdown(holeCards, won) {
+    const current = get().range;
+    set({ loading: true, error: undefined });
+    try {
+      await api.postShowdown({
+        hand_id: current.hand_id,
+        player_id: current.player_id,
+        hole_cards: holeCards,
+        won,
+      });
+      set({ loading: false });
+    } catch (error) {
+      set({ error: "Could not record showdown. Check that the backend is running.", loading: false });
     }
   },
   async rewind(sequence) {

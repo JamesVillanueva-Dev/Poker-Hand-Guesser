@@ -94,6 +94,13 @@ export interface ActionPayload {
   effective_stack: number;
 }
 
+export interface ShowdownPayload {
+  hand_id: string;
+  player_id: string;
+  hole_cards: string[];
+  won: boolean;
+}
+
 export interface ActionDraft {
   actor: ActionActor;
   action_type: ActionType;

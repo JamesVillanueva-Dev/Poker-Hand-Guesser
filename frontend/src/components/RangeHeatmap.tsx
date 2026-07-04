@@ -8,9 +8,9 @@ interface RangeHeatmapProps {
 
 function colorFor(probability: number, maxProbability: number) {
   const intensity = maxProbability > 0 ? probability / maxProbability : 0;
-  const lightness = 96 - intensity * 50;
-  const saturation = 38 + intensity * 35;
-  return `hsl(${155 - intensity * 32} ${saturation}% ${lightness}%)`;
+  const lightness = 97 - intensity * 48;
+  const saturation = 58 + intensity * 28;
+  return `hsl(${202 + intensity * 12} ${saturation}% ${lightness}%)`;
 }
 
 export function RangeHeatmap({ matrix }: RangeHeatmapProps) {
@@ -26,7 +26,7 @@ export function RangeHeatmap({ matrix }: RangeHeatmapProps) {
         </div>
         <div className="flex items-center gap-2 text-xs text-zinc-500">
           <span>Low</span>
-          <div className="h-2 w-28 rounded-full bg-gradient-to-r from-[#eef8f3] to-[#147052]" />
+          <div className="h-2 w-28 rounded-full bg-gradient-to-r from-[#eef9ff] to-[#2563eb]" />
           <span>High</span>
         </div>
       </div>
@@ -49,7 +49,7 @@ export function RangeHeatmap({ matrix }: RangeHeatmapProps) {
                 return (
                   <button
                     key={`${row}-${col}`}
-                    className="aspect-square min-h-12 border border-white text-xs font-semibold text-ink transition hover:scale-[1.03] hover:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-copper"
+                    className="aspect-square min-h-12 border border-white text-xs font-semibold text-ink transition hover:scale-[1.03] hover:border-sky-700 focus:outline-none focus:ring-2 focus:ring-copper"
                     style={{ background: colorFor(probability, maxProbability), borderRadius: 5 }}
                     title={`${cell?.hand ?? ""} | ${(probability * 100).toFixed(3)}% | ${cell?.combo_count ?? 0} combos`}
                   >
