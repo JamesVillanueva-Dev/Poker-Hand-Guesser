@@ -1,74 +1,209 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-:root {
-  color: #102033;
-  background: #f6fbff;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/**
+ * Design tokens.
+ *
+ * These live here, not in `tailwind.config.js`, because this project runs Tailwind v4 —
+ * which does not read the JS config unless it is explicitly imported. The old config
+ * was silently ignored, so every `bg-felt-700`, `text-ink` and `text-copper` in the app
+ * compiled to nothing at all. Defining the theme in CSS is the v4 idiom and means the
+ * tokens are actually real.
+ *
+ * Two rules hold it together:
+ *   1. Colour carries meaning. `accent` is interactive or selected; positive, negative
+ *      and caution mean value, loss and unvalidated. Nothing decorative uses them.
+ *   2. One radius scale, one type scale. No component sets a raw hex or an inline style.
+ */
+@theme {
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Text */
+  --color-ink: #0f1c2e;
+  --color-ink-muted: #46586d;
+  /* Darkened from #66788d, which was 4.1:1 on the sunken surface — below the 4.5:1
+     small-text threshold, and this token is used at 11px. */
+  --color-ink-faint: #5a6b80;
+
+  /* Surfaces and rules */
+  --color-surface: #ffffff;
+  --color-surface-sunken: #eef4fa;
+  --color-surface-raised: #fbfdff;
+  --color-line: #d5e2ef;
+  --color-line-strong: #b0c4d8;
+
+  /* Interactive / selected */
+  --color-accent-50: #eff6ff;
+  --color-accent-100: #dbeafe;
+  --color-accent-200: #bfdbfe;
+  --color-accent-400: #60a5fa;
+  --color-accent-500: #3b82f6;
+  --color-accent-600: #2563eb;
+  --color-accent-700: #1d4ed8;
+  --color-accent-900: #1e3a8a;
+
+  /* Value, gain, beating the baseline */
+  --color-positive-50: #ecfdf5;
+  --color-positive-200: #a7f3d0;
+  --color-positive-500: #10b981;
+  --color-positive-700: #047857;
+
+  /* Loss, below baseline */
+  --color-negative-50: #fef2f2;
+  --color-negative-200: #fecaca;
+  --color-negative-500: #ef4444;
+  --color-negative-600: #dc2626;
+  --color-negative-700: #b91c1c;
+
+  /* Unvalidated, small sample, needs attention */
+  --color-caution-50: #fffbeb;
+  --color-caution-200: #fde68a;
+  --color-caution-500: #f59e0b;
+  --color-caution-700: #b45309;
+
+  /* One radius scale. */
+  --radius-sm: 4px;
+  --radius-DEFAULT: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* A real hierarchy: a section read once must not compete with a number checked constantly. */
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1rem;
+  --text-micro--letter-spacing: 0.02em;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.125rem;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.375rem;
+  --text-body-lg: 1rem;
+  --text-body-lg--line-height: 1.5rem;
+  --text-section: 0.75rem;
+  --text-section--line-height: 1rem;
+  --text-section--letter-spacing: 0.08em;
+  --text-title: 1.0625rem;
+  --text-title--line-height: 1.5rem;
+  --text-page: 1.375rem;
+  --text-page--line-height: 1.75rem;
+  --text-page--letter-spacing: -0.01em;
+  --text-figure: 1.75rem;
+  --text-figure--line-height: 2rem;
+  --text-figure--letter-spacing: -0.02em;
+  --text-figure-lg: 2.375rem;
+  --text-figure-lg--line-height: 2.625rem;
+  --text-figure-lg--letter-spacing: -0.02em;
+
+  --shadow-panel: 0 1px 2px rgb(15 28 46 / 0.05), 0 6px 20px rgb(15 28 46 / 0.05);
+  --shadow-pop: 0 8px 28px rgb(15 28 46 / 0.18);
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
+@layer base {
+  :root {
+    color: var(--color-ink);
+    background: var(--color-surface-sunken);
+    font-family: var(--font-sans);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* One focus treatment, everywhere, meeting contrast on every surface in the app. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent-600);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
-button,
-input,
-select {
-  font: inherit;
-}
+@layer components {
+  .panel {
+    @apply rounded-md border border-line bg-surface shadow-panel;
+  }
 
-.card-panel {
-  border: 1px solid #d9e8f7;
-  background: rgb(255 255 255 / 0.94);
-  box-shadow: 0 14px 40px rgb(37 99 235 / 0.07), 0 1px 2px rgb(16 32 51 / 0.08);
-  border-radius: 8px;
-  backdrop-filter: blur(10px);
-}
+  .panel-sunken {
+    @apply rounded border border-line bg-surface-sunken;
+  }
 
-.hero-panel {
-  border: 1px solid #c9e5f7;
-  background:
-    linear-gradient(135deg, rgb(255 255 255 / 0.98), rgb(239 249 255 / 0.95)),
-    linear-gradient(90deg, #38bdf8, #2563eb);
-  box-shadow: 0 18px 50px rgb(37 99 235 / 0.1);
-  border-radius: 8px;
-  padding: 18px;
-}
+  /* Section labels name a region. They are deliberately quiet: they are not the content. */
+  .label-section {
+    @apply text-section font-semibold uppercase text-ink-faint;
+  }
 
-.summary-tile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid #d9e8f7;
-  background: rgb(255 255 255 / 0.84);
-  border-radius: 6px;
-  padding: 12px;
-}
+  .label-field {
+    @apply text-caption font-medium text-ink-muted;
+  }
 
-.metric-card {
-  border: 1px solid #d9e8f7;
-  background: linear-gradient(180deg, #ffffff, #f7fcff);
-  border-radius: 8px;
-  padding: 14px;
-  box-shadow: 0 10px 28px rgb(37 99 235 / 0.06);
-}
+  .numeric {
+    @apply font-mono tabular-nums;
+  }
 
-.explain-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid #d9e8f7;
-  background: linear-gradient(180deg, #ffffff, #f7fcff);
-  padding: 16px;
-}
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45;
+  }
 
-.mono-tabular {
-  font-variant-numeric: tabular-nums;
+  .btn-md {
+    @apply h-10 px-4 text-body;
+  }
+
+  .btn-sm {
+    @apply h-8 px-3 text-caption;
+  }
+
+  .btn-primary {
+    @apply border-transparent bg-accent-600 text-white hover:bg-accent-700;
+  }
+
+  .btn-secondary {
+    @apply border-line bg-surface text-ink hover:bg-accent-50;
+  }
+
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-ink-muted hover:bg-surface-sunken hover:text-ink;
+  }
+
+  .field {
+    @apply h-10 w-full rounded border border-line bg-surface px-3 text-body text-ink outline-none placeholder:text-ink-faint focus:border-accent-500;
+  }
+
+  /* A key cap, for the inline shortcut hints on the action buttons. */
+  .keycap {
+    @apply inline-flex h-4 min-w-4 items-center justify-center rounded-sm border border-current px-1 text-micro font-semibold opacity-60;
+  }
+
+  /* Impossible hand classes: card removal has ruled them out entirely. Hatched, so they
+     read as "not available" rather than "very unlikely" even without colour. */
+  .blocked-cell {
+    background-image: repeating-linear-gradient(
+      135deg,
+      var(--color-surface-sunken) 0,
+      var(--color-surface-sunken) 3px,
+      var(--color-line) 3px,
+      var(--color-line) 4px
+    );
+  }
 }

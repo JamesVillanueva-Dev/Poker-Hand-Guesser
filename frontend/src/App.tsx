@@ -1,17 +1,38 @@
-import { useEffect, useRef } from "react";
-import { GuidedHandFlow } from "./components/GuidedHandFlow";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AnswerHeader } from "./components/AnswerHeader";
+import { CalibrationPanel } from "./components/CalibrationPanel";
+import { HandEntry } from "./components/HandEntry";
 import { PlayerStats } from "./components/PlayerStats";
 import { RangeCharts } from "./components/RangeCharts";
 import { RangeExplainer } from "./components/RangeExplainer";
 import { RangeHeatmap } from "./components/RangeHeatmap";
-import { RangeMetrics } from "./components/RangeMetrics";
-import { RecommendationPanel } from "./components/RecommendationPanel";
+import { AnswerSkeleton, BackendOffline, ErrorBanner, ShortcutOverlay } from "./components/States";
+import { Tabs } from "./components/Tabs";
 import { Timeline } from "./components/Timeline";
 import { TopHands } from "./components/TopHands";
+import { useHotkeys } from "./hooks/useHotkeys";
 import { useRangeStore } from "./store/rangeStore";
 
 export default function App() {
-  const { range, profile, handContext, handNumber, loading, error, selectedSequence, updateContext, newHand, resetSession, addAction, recordShowdown, rewind } = useRangeStore();
+  const {
+    range,
+    profile,
+    handContext,
+    handNumber,
+    loading,
+    error,
+    selectedSequence,
+    updateContext,
+    dismissError,
+    newHand,
+    resetSession,
+    addAction,
+    recordShowdown,
+    rewind,
+  } = useRangeStore();
+
+  const [tab, setTab] = useState("timeline");
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -20,38 +41,111 @@ export default function App() {
     void resetSession();
   }, [resetSession]);
 
+  const stepBack = () => {
+    if (!range || selectedSequence <= 0) return;
+    void rewind(selectedSequence - 1);
+  };
+
+  useHotkeys(
+    useMemo(
+      () => ({
+        ArrowLeft: stepBack,
+        Escape: () => setShortcutsOpen(false),
+      }),
+      [stepBack],
+    ),
+  );
+
+  const baselineEntropy = range?.calibration.baseline_log_loss ?? 7.4;
+
+  const tabs = range
+    ? [
+        {
+          id: "timeline",
+          label: "Rewind",
+          content: <Timeline entries={range.timeline} selected={selectedSequence} onSelect={rewind} />,
+        },
+        {
+          id: "accuracy",
+          label: "Accuracy",
+          content: <CalibrationPanel calibration={range.calibration} />,
+        },
+        {
+          id: "opponent",
+          label: "Opponent",
+          content: <PlayerStats profile={profile} samples={range.profile_samples} />,
+        },
+        {
+          id: "trends",
+          label: "Trends",
+          content: (
+            <RangeCharts timeline={range.timeline} topHands={range.top_hands} baselineEntropy={baselineEntropy} />
+          ),
+        },
+      ]
+    : [];
+
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dff4ff_0,#f6fbff_34%,#ffffff_100%)] px-4 py-6 text-ink md:px-8 md:py-8">
-      <div className="mx-auto grid max-w-[1500px] gap-6">
-        <GuidedHandFlow
-          context={handContext}
-          range={range}
-          handNumber={handNumber}
-          loading={loading}
-          onContext={updateContext}
-          onAction={addAction}
-          onShowdown={recordShowdown}
-          onNewHand={() => newHand(true)}
-          onResetSession={resetSession}
-        />
-        {error ? <div className="border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900" style={{ borderRadius: 6 }}>{error}</div> : null}
-        <RecommendationPanel recommendation={range.recommendation} notes={range.adaptation_notes} />
-        <section className="grid gap-5">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Analysis</h2>
-            <p className="mt-1 text-sm text-zinc-600">The hand flow stays focused above; range details live here while the hand evolves.</p>
-          </div>
-          <RangeMetrics entropy={range.entropy} topHands={range.top_hands} matrix={range.matrix} />
-          <div className="grid gap-6 2xl:grid-cols-[minmax(780px,1fr)_420px]">
-            <RangeHeatmap matrix={range.matrix} />
-            <TopHands hands={range.top_hands} />
-          </div>
-          <RangeExplainer timeline={range.timeline} topHands={range.top_hands} entropy={range.entropy} />
-          <Timeline entries={range.timeline} selected={selectedSequence} onSelect={rewind} />
-          <RangeCharts timeline={range.timeline} topHands={range.top_hands} />
-          <PlayerStats profile={profile} />
-        </section>
+    <div className="min-h-screen bg-surface-sunken text-ink">
+      <div className="mx-auto grid max-w-[100rem] gap-4 px-4 py-4 lg:grid-cols-[23rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:px-6 lg:py-6">
+        {/* No overflow clipping here, and an explicit z-index: `position: sticky` opens a
+            stacking context, so without one the card picker's popover paints *under* the
+            opaque panels in the reading region instead of over them. */}
+        <aside className="panel z-20 h-fit p-4 lg:sticky lg:top-6 lg:p-5">
+          {range ? (
+            <HandEntry
+              context={handContext}
+              range={range}
+              handNumber={handNumber}
+              loading={loading}
+              onContext={updateContext}
+              onAction={addAction}
+              onShowdown={recordShowdown}
+              onNewHand={() => newHand(true)}
+              onResetSession={resetSession}
+              onShowShortcuts={() => setShortcutsOpen(true)}
+            />
+          ) : (
+            <div className="grid gap-3">
+              <div className="label-section">Hand entry</div>
+              <p className="text-body text-ink-muted">Controls appear once the engine is reachable.</p>
+            </div>
+          )}
+        </aside>
+
+        <main className="grid min-w-0 gap-4">
+          {error ? (
+            <ErrorBanner
+              error={error}
+              onDismiss={dismissError}
+              onNewHand={() => void newHand(true)}
+              onRetry={() => void resetSession()}
+            />
+          ) : null}
+
+          {!range ? (
+            <BackendOffline error={error} loading={loading} onRetry={resetSession} />
+          ) : loading && range.timeline.length === 0 ? (
+            <AnswerSkeleton />
+          ) : (
+            <>
+              <AnswerHeader
+                recommendation={range.recommendation}
+                calibration={range.calibration}
+                entropy={range.entropy}
+              />
+              <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
+                <RangeHeatmap matrix={range.matrix} timeline={range.timeline} />
+                <TopHands hands={range.top_hands} composition={range.recommendation.range_composition} />
+              </div>
+              <Tabs tabs={tabs} active={tab} onChange={setTab} label="Hand details" />
+              <RangeExplainer matrix={range.matrix} entropy={range.entropy} baselineEntropy={baselineEntropy} />
+            </>
+          )}
+        </main>
       </div>
-    </main>
+
+      {shortcutsOpen ? <ShortcutOverlay onClose={() => setShortcutsOpen(false)} /> : null}
+    </div>
   );
 }

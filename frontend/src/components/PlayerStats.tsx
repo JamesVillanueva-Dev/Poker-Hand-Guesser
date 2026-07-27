@@ -1,54 +1,71 @@
+import { percent } from "../lib/format";
 import type { PlayerProfile } from "../types/poker";
 
-const percentStats: Array<[keyof PlayerProfile, string]> = [
-  ["vpip", "VPIP"],
-  ["pfr", "PFR"],
-  ["three_bet", "3Bet"],
-  ["fold_to_three_bet", "Fold to 3Bet"],
-  ["cbet", "CBet"],
-  ["bluff_frequency", "Bluff"],
-  ["showdown_frequency", "Showdown"],
+const STATS: Array<{ key: keyof PlayerProfile; label: string; sampleKey: string; detail: string }> = [
+  { key: "vpip", label: "VPIP", sampleKey: "preflop_hands", detail: "Voluntarily put money in preflop, over preflop hands." },
+  { key: "pfr", label: "PFR", sampleKey: "preflop_hands", detail: "Raised preflop, over preflop hands." },
+  { key: "three_bet", label: "3-Bet", sampleKey: "three_bet_opportunities", detail: "Re-raised, over spots facing one raise." },
+  { key: "fold_to_three_bet", label: "Fold to 3-Bet", sampleKey: "three_bets_faced", detail: "Folded, over spots facing a re-raise." },
+  { key: "cbet", label: "C-Bet", sampleKey: "cbet_opportunities", detail: "Bet the flop as preflop aggressor, over those chances." },
+  { key: "bluff_frequency", label: "Bluff", sampleKey: "showdown_aggressive_hands", detail: "Bet or raised then tabled a weak hand, over aggressive showdowns." },
+  { key: "showdown_frequency", label: "Showdown", sampleKey: "showdowns", detail: "Reached showdown, over hands that could have." },
 ];
 
-const statDetails: Partial<Record<keyof PlayerProfile, string>> = {
-  vpip: "How often the player voluntarily enters a pot.",
-  pfr: "How often the player raises before the flop.",
-  three_bet: "How often the player re-raises preflop.",
-  fold_to_three_bet: "How often the player folds to a preflop re-raise.",
-  cbet: "How often the player continuation bets the flop.",
-  bluff_frequency: "Estimated share of aggressive actions that may be bluffs.",
-  showdown_frequency: "How often observed hands reach showdown.",
-};
+interface PlayerStatsProps {
+  profile: PlayerProfile;
+  samples?: Record<string, number>;
+}
 
-export function PlayerStats({ profile }: { profile: PlayerProfile }) {
+export function PlayerStats({ profile, samples = {} }: PlayerStatsProps) {
   return (
-    <section className="card-panel p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Session Opponent Tendencies</h2>
-        <span className="text-xs text-zinc-500">{profile.hands_observed} actions observed</span>
+    <section className="panel p-4 md:p-5" aria-labelledby="stats-heading">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 id="stats-heading" className="label-section">
+            Opponent tendencies
+          </h2>
+          <p className="mt-1 max-w-2xl text-body text-ink-muted">
+            Each rate is a count over its own opportunities, shrunk toward a population prior. The sample size is the
+            denominator it was measured over: a small one means the number is still mostly the prior.
+          </p>
+        </div>
+        <span className="numeric text-caption text-ink-faint">{profile.hands_observed} hands observed</span>
       </div>
-      <p className="mb-4 text-sm leading-6 text-zinc-600">
-        These tendencies live only in the current session and change how future opponent actions are interpreted.
-      </p>
-      <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-        {percentStats.map(([key, label]) => {
+
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {STATS.map(({ key, label, sampleKey, detail }) => {
           const value = Number(profile[key]);
+          const sample = samples[sampleKey] ?? 0;
           return (
-            <div key={key} className="border border-zinc-200 p-3" style={{ borderRadius: 6 }}>
-              <div className="text-xs text-zinc-500">{label}</div>
-              <div className="mono-tabular mt-1 text-lg font-semibold">{(value * 100).toFixed(1)}%</div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                <div className="h-full rounded-full bg-copper" style={{ width: `${Math.min(100, value * 100)}%` }} />
+            <div key={key} className="rounded border border-line bg-surface-raised p-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-caption font-medium text-ink-muted">{label}</span>
+                <span className={`numeric text-micro ${sample ? "text-ink-faint" : "text-caution-700"}`}>
+                  {sample ? `n=${sample}` : "prior only"}
+                </span>
               </div>
-              <div className="mt-2 min-h-10 text-xs leading-5 text-zinc-500">{statDetails[key]}</div>
+              <div className="numeric mt-0.5 text-title font-semibold text-ink">{percent(value)}</div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                <div
+                  className={`h-full rounded-full ${sample ? "bg-accent-500" : "bg-line-strong"}`}
+                  style={{ width: `${Math.min(100, value * 100)}%` }}
+                />
+              </div>
+              <p className="mt-2 text-micro leading-4 text-ink-faint">{detail}</p>
             </div>
           );
         })}
-        <div className="border border-zinc-200 p-3" style={{ borderRadius: 6 }}>
-          <div className="text-xs text-zinc-500">Aggression</div>
-          <div className="mono-tabular mt-1 text-lg font-semibold">{profile.aggression.toFixed(2)}</div>
-          <div className="text-xs text-zinc-500">River {profile.river_aggression.toFixed(2)}</div>
-          <div className="mt-2 min-h-10 text-xs leading-5 text-zinc-500">Higher values make bets and raises more likely across a wider range.</div>
+
+        <div className="rounded border border-line bg-surface-raised p-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-caption font-medium text-ink-muted">Aggression</span>
+            <span className="numeric text-micro text-ink-faint">n={samples.postflop_actions ?? 0}</span>
+          </div>
+          <div className="numeric mt-0.5 text-title font-semibold text-ink">{profile.aggression.toFixed(2)}</div>
+          <div className="numeric mt-2 text-caption text-ink-muted">River {profile.river_aggression.toFixed(2)}</div>
+          <p className="mt-2 text-micro leading-4 text-ink-faint">
+            Aggressive actions per passive one. Higher values widen the betting range.
+          </p>
         </div>
       </div>
     </section>

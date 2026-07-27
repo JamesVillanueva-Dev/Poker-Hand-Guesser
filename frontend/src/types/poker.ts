@@ -31,6 +31,10 @@ export interface TimelineEntry {
     bet_fraction_pot: number;
   };
   explanation?: string;
+  board_cards?: string[];
+  hero_cards?: string[];
+  street?: Street;
+  terminal?: boolean;
 }
 
 export interface BoardState {
@@ -40,6 +44,13 @@ export interface BoardState {
   pot: number;
   effective_stack: number;
   position: string;
+  hand_complete?: boolean;
+}
+
+export interface EvCandidate {
+  action: string;
+  sizing_pot_fraction: number;
+  expected_value_bb: number;
 }
 
 export interface MoveRecommendation {
@@ -49,6 +60,27 @@ export interface MoveRecommendation {
   confidence: number;
   headline: string;
   reasons: string[];
+  expected_value_bb: number;
+  confidence_basis: string;
+  ev_breakdown: EvCandidate[];
+  range_composition: Record<string, number>;
+}
+
+export interface ScoreSummary {
+  count: number;
+  mean_skill: number;
+  mean_log_loss: number;
+  top_10_rate: number;
+}
+
+export interface Calibration {
+  baseline_log_loss: number;
+  overall: ScoreSummary;
+  by_street: Partial<Record<Street, ScoreSummary>>;
+  recent: ScoreSummary;
+  recent_window: number;
+  summary: string;
+  beats_guessing: boolean;
 }
 
 export interface RangeResponse {
@@ -63,6 +95,15 @@ export interface RangeResponse {
   profile: PlayerProfile;
   recommendation: MoveRecommendation;
   adaptation_notes: string[];
+  hand_complete: boolean;
+  profile_samples: Record<string, number>;
+  calibration: Calibration;
+  /**
+   * What the opponent can legally do on each street, computed by the same code as the
+   * policy. Keyed by street so the controls follow the user when they move ahead of the
+   * action. An empty list means nothing is pending on that street.
+   */
+  legal_actions_by_street: Partial<Record<Street, ActionType[]>>;
 }
 
 export interface PlayerProfile {
@@ -116,8 +157,11 @@ export interface ActionDraft {
 export interface HandContext {
   street: Street;
   position: string;
-  pot: number;
+  /** Pot posted before any action: blinds and antes. Everything after is derived. */
+  startingPot: number;
+  /** Set only when the user deliberately overrides the derived pot. */
+  potOverride?: number;
   effectiveStack: number;
-  heroCards: string;
-  boardCards: string;
+  heroCards: string[];
+  boardCards: string[];
 }

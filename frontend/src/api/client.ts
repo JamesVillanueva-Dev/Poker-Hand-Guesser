@@ -1,6 +1,17 @@
-import type { ActionPayload, BoardState, PlayerProfile, RangeResponse, ShowdownPayload } from "../types/poker";
+import type { ActionPayload, BoardState, Calibration, PlayerProfile, RangeResponse, ShowdownPayload } from "../types/poker";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+
+export interface ShowdownResult {
+  status: string;
+  hole_cards: string[];
+  won: boolean;
+  true_class: string;
+  scores: Array<{ street: string; log_loss: number; skill: number; percentile: number; top_10_hit: boolean }>;
+  training_rows_written: number;
+  profile: PlayerProfile;
+  calibration: Calibration;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -51,11 +62,17 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
-  postShowdown(payload: ShowdownPayload): Promise<{ status: string; hole_cards: string[]; won: boolean }> {
-    return request<{ status: string; hole_cards: string[]; won: boolean }>("/showdown", {
+  postShowdown(payload: ShowdownPayload): Promise<ShowdownResult> {
+    return request<ShowdownResult>("/showdown", {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  },
+  getRange(handId: string): Promise<RangeResponse> {
+    return request<RangeResponse>(`/range/${handId}`);
+  },
+  getCalibration(): Promise<Calibration> {
+    return request<Calibration>("/calibration");
   },
   rewind(handId: string, sequence: number): Promise<RangeResponse> {
     return request<RangeResponse>(`/range/${handId}/snapshot/${sequence}`);

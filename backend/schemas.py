@@ -62,6 +62,10 @@ class RangeResponse(BaseModel):
     profile: dict[str, Any]
     recommendation: dict[str, Any]
     adaptation_notes: list[str]
+    hand_complete: bool = False
+    profile_samples: dict[str, int] = Field(default_factory=dict)
+    calibration: dict[str, Any] = Field(default_factory=dict)
+    legal_actions_by_street: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class PlayerResponse(BaseModel):
@@ -76,3 +80,24 @@ class PlayerResponse(BaseModel):
     bluff_frequency: float
     showdown_frequency: float
     hands_observed: int
+    sample_sizes: dict[str, int] = Field(default_factory=dict)
+
+
+class PredictionScoreResponse(BaseModel):
+    street: str
+    log_loss: float
+    baseline_log_loss: float
+    skill: float
+    percentile: float
+    top_10_hit: bool
+    predicted_probability: float
+
+
+class CalibrationResponse(BaseModel):
+    baseline_log_loss: float
+    overall: dict[str, Any]
+    by_street: dict[str, Any]
+    recent: dict[str, Any]
+    recent_window: int
+    summary: str
+    beats_guessing: bool

@@ -1,28 +1,86 @@
-import { GitBranch } from "lucide-react";
+import { percent } from "../lib/format";
 import type { TimelineEntry } from "../types/poker";
 
-export function Timeline({ entries, selected, onSelect }: { entries: TimelineEntry[]; selected: number; onSelect: (sequence: number) => void }) {
+interface TimelineProps {
+  entries: TimelineEntry[];
+  selected: number;
+  onSelect: (sequence: number) => void;
+}
+
+/**
+ * The rewind scrubber.
+ *
+ * Rewind is the best thing in this app and used to be a horizontal strip of cards whose
+ * only affordance was a `title` tooltip. It now reads as a track you can move along, with
+ * the entropy of each step drawn on it so you can see where the range collapsed.
+ */
+export function Timeline({ entries, selected, onSelect }: TimelineProps) {
+  if (!entries.length) return null;
+  const maxEntropy = Math.max(...entries.map((entry) => entry.entropy), 1e-9);
+  const current = entries.find((entry) => entry.sequence === selected) ?? entries[entries.length - 1];
+  const atLatest = selected === entries[entries.length - 1].sequence;
+
   return (
-    <section className="card-panel p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Action Timeline</h2>
-        <GitBranch size={16} className="text-zinc-500" />
-      </div>
-      <p className="mb-3 text-sm text-zinc-600">Click a step to rewind the belief distribution to that point in the hand.</p>
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {entries.map((entry) => (
-          <button
-            key={entry.sequence}
-            className={`min-w-36 border px-3 py-2 text-left text-sm transition ${selected === entry.sequence ? "border-felt-700 bg-felt-50" : "border-zinc-200 bg-white hover:bg-zinc-50"}`}
-            style={{ borderRadius: 6 }}
-            onClick={() => onSelect(entry.sequence)}
-            title="Rewind belief distribution to this action"
-          >
-            <div className="text-xs font-medium text-zinc-500">#{entry.sequence}</div>
-            <div className="truncate font-semibold">{entry.action_label}</div>
-            <div className="mono-tabular text-xs text-zinc-500">Entropy {entry.entropy.toFixed(2)}</div>
+    <section className="panel p-4 md:p-5" aria-labelledby="timeline-heading">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 id="timeline-heading" className="label-section">
+            Rewind
+          </h2>
+          <p className="mt-1 text-body text-ink-muted">
+            Step back through the hand to see what the range looked like at each action.
+          </p>
+        </div>
+        {!atLatest ? (
+          <button className="btn btn-sm btn-secondary" onClick={() => onSelect(entries[entries.length - 1].sequence)}>
+            Back to latest
           </button>
-        ))}
+        ) : null}
+      </div>
+
+      <ol
+        className="flex items-end gap-1"
+        role="listbox"
+        aria-label="Hand timeline"
+        aria-activedescendant={`step-${current.sequence}`}
+      >
+        {/* With one snapshot there is nothing to scrub between; the bars are sized so a
+            single step reads as a marker rather than a full-width block. */}
+        {entries.map((entry) => {
+          const active = entry.sequence === selected;
+          const height = Math.max(8, (entry.entropy / maxEntropy) * 56);
+          return (
+            <li key={entry.sequence} className="flex min-w-0 max-w-24 flex-1 flex-col items-center gap-1">
+              <span className="numeric text-micro text-ink-faint">{entry.entropy.toFixed(1)}</span>
+              <button
+                id={`step-${entry.sequence}`}
+                type="button"
+                role="option"
+                aria-selected={active}
+                aria-label={`${entry.action_label}. Entropy ${entry.entropy.toFixed(2)} bits.`}
+                onClick={() => onSelect(entry.sequence)}
+                className={`w-full rounded-sm transition-colors ${
+                  active ? "bg-accent-600" : "bg-accent-200 hover:bg-accent-400"
+                }`}
+                style={{ height }}
+              />
+              <span className="w-full truncate text-center text-micro text-ink-faint" aria-hidden>
+                {entry.sequence}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="mt-3 rounded border border-line bg-surface-raised p-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <span className="text-body font-semibold text-ink">{current.action_label}</span>
+          <span className="numeric text-caption text-ink-muted">
+            entropy {current.entropy.toFixed(2)} bits
+            {current.action ? ` · ${percent(current.action.bet_fraction_pot, 0)} pot` : ""}
+          </span>
+        </div>
+        {current.explanation ? <p className="mt-1.5 text-body text-ink-muted">{current.explanation}</p> : null}
       </div>
     </section>
   );

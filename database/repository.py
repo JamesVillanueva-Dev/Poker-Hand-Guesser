@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from engine.state import PlayerProfile
+from engine.state import PROFILE_COUNTERS, PlayerProfile
 
 DATABASE_PATH = Path(__file__).resolve().parent / "poker_range.sqlite3"
 
@@ -56,6 +56,23 @@ class SQLiteRepository:
                     parsed_json TEXT NOT NULL,
                     imported_at TEXT DEFAULT CURRENT_TIMESTAMP
                 );
+
+                CREATE TABLE IF NOT EXISTS predictions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    hand_id TEXT NOT NULL,
+                    player_id TEXT NOT NULL,
+                    street TEXT NOT NULL,
+                    final_distribution TEXT NOT NULL,
+                    true_class TEXT NOT NULL,
+                    log_loss REAL NOT NULL,
+                    baseline_log_loss REAL NOT NULL,
+                    skill REAL NOT NULL,
+                    percentile REAL NOT NULL,
+                    top_10_hit INTEGER NOT NULL,
+                    predicted_probability REAL NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (hand_id, street)
+                );
                 """
             )
             columns = {
@@ -64,6 +81,16 @@ class SQLiteRepository:
             }
             if "session_profile" not in columns:
                 connection.execute("ALTER TABLE hand_sessions ADD COLUMN session_profile TEXT")
+
+            profile_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(player_profiles)").fetchall()
+            }
+            for counter in PROFILE_COUNTERS:
+                if counter not in profile_columns:
+                    connection.execute(
+                        f"ALTER TABLE player_profiles ADD COLUMN {counter} INTEGER NOT NULL DEFAULT 0"
+                    )
 
     def get_player(self, player_id: str) -> PlayerProfile:
         with self._connect() as connection:
@@ -76,27 +103,14 @@ class SQLiteRepository:
 
     def save_player(self, profile: PlayerProfile) -> None:
         values = profile.as_dict()
+        columns = list(values)
+        assignments = ", ".join(f"{column} = excluded.{column}" for column in columns if column != "player_id")
         with self._connect() as connection:
             connection.execute(
-                """
-                INSERT INTO player_profiles (
-                    player_id, vpip, pfr, three_bet, fold_to_three_bet, cbet, aggression,
-                    river_aggression, bluff_frequency, showdown_frequency, hands_observed
-                ) VALUES (
-                    :player_id, :vpip, :pfr, :three_bet, :fold_to_three_bet, :cbet, :aggression,
-                    :river_aggression, :bluff_frequency, :showdown_frequency, :hands_observed
-                )
-                ON CONFLICT(player_id) DO UPDATE SET
-                    vpip = excluded.vpip,
-                    pfr = excluded.pfr,
-                    three_bet = excluded.three_bet,
-                    fold_to_three_bet = excluded.fold_to_three_bet,
-                    cbet = excluded.cbet,
-                    aggression = excluded.aggression,
-                    river_aggression = excluded.river_aggression,
-                    bluff_frequency = excluded.bluff_frequency,
-                    showdown_frequency = excluded.showdown_frequency,
-                    hands_observed = excluded.hands_observed
+                f"""
+                INSERT INTO player_profiles ({", ".join(columns)})
+                VALUES ({", ".join(f":{column}" for column in columns)})
+                ON CONFLICT(player_id) DO UPDATE SET {assignments}
                 """,
                 values,
             )
@@ -147,6 +161,73 @@ class SQLiteRepository:
                 (limit,),
             ).fetchall()
         return [{**dict(row), "board_state": json.loads(row["board_state"])} for row in rows]
+
+    def save_prediction(
+        self,
+        hand_id: str,
+        player_id: str,
+        street: str,
+        distribution: dict[str, float],
+        true_class: str,
+        score: dict[str, Any],
+    ) -> None:
+        """Persist one scored prediction. Re-scoring a street overwrites its row."""
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO predictions (
+                    hand_id, player_id, street, final_distribution, true_class,
+                    log_loss, baseline_log_loss, skill, percentile, top_10_hit, predicted_probability
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(hand_id, street) DO UPDATE SET
+                    player_id = excluded.player_id,
+                    final_distribution = excluded.final_distribution,
+                    true_class = excluded.true_class,
+                    log_loss = excluded.log_loss,
+                    baseline_log_loss = excluded.baseline_log_loss,
+                    skill = excluded.skill,
+                    percentile = excluded.percentile,
+                    top_10_hit = excluded.top_10_hit,
+                    predicted_probability = excluded.predicted_probability,
+                    created_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    hand_id,
+                    player_id,
+                    street,
+                    json.dumps(distribution),
+                    true_class,
+                    float(score["log_loss"]),
+                    float(score["baseline_log_loss"]),
+                    float(score["skill"]),
+                    float(score["percentile"]),
+                    1 if score["top_10_hit"] else 0,
+                    float(score["predicted_probability"]),
+                ),
+            )
+
+    def list_predictions(
+        self,
+        player_id: str | None = None,
+        street: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        clauses: list[str] = []
+        parameters: list[Any] = []
+        if player_id:
+            clauses.append("player_id = ?")
+            parameters.append(player_id)
+        if street:
+            clauses.append("street = ?")
+            parameters.append(street)
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        query = f"SELECT * FROM predictions{where} ORDER BY id DESC"
+        if limit is not None:
+            query += " LIMIT ?"
+            parameters.append(limit)
+        with self._connect() as connection:
+            rows = connection.execute(query, parameters).fetchall()
+        return [{**dict(row), "top_10_hit": bool(row["top_10_hit"])} for row in rows]
 
     def import_hand(self, site: str, raw_text: str, parsed: dict[str, Any]) -> int:
         with self._connect() as connection:

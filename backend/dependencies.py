@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from database.repository import SQLiteRepository
-from engine.likelihood import HeuristicLikelihood
+from engine.likelihood import PolicyLikelihood
 from engine.range_engine import RangeEstimator
 
 repository = SQLiteRepository()
-range_estimator = RangeEstimator(likelihood_model=HeuristicLikelihood())
+range_estimator = RangeEstimator(likelihood_model=PolicyLikelihood())
 
 
 def get_repository() -> SQLiteRepository:
